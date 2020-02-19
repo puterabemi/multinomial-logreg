@@ -1,0 +1,38 @@
+---
+title: "class practical"
+author: "Mohd Azmi"
+date: "19/02/2020"
+output: html_document
+---
+
+
+```{r}
+library(haven)
+library(tidyverse)
+library(summarytools)
+library(VGAM)
+```
+
+
+```{r}
+mammog9 <- read_dta("mammog9.dta")
+mammog9 <- mammog9 %>%
+  mutate(me2 = factor(me, labels = c("never","within.a.year","over.a.year.ago"))) %>%
+  mutate(symp2 = factor(sympt, labels = c("strongly agree", "agree", "disagree", "strongly disagree"))) %>%
+  mutate(hist2 = factor(hist, labels = c("no", "yes")))
+head(mammog9)
+```
+
+```{r}
+descr(mammog9)
+freq(mammog9)
+```
+
+```{r}
+levels(mammog9$me2)
+levels(mammog9$hist2)
+mnlogreg1 <- vglm(me2 ~ hist2, multinomial, data = mammog9)
+mnlogreg1
+summary(mnlogreg1)
+```
+
