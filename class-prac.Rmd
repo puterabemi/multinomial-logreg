@@ -6,11 +6,13 @@ output: html_document
 ---
 
 
-```{r}
+```{r, warning=FALSE}
 library(haven)
 library(tidyverse)
 library(summarytools)
 library(VGAM)
+library(broom)
+library(knitr)
 ```
 
 
@@ -18,21 +20,80 @@ library(VGAM)
 mammog9 <- read_dta("mammog9.dta")
 mammog9 <- mammog9 %>%
   mutate(me2 = factor(me, labels = c("never","within.a.year","over.a.year.ago"))) %>%
+  mutate(me3 = fct_relevel(me2, c("over.a.year.ago", "within.a.year", "never"))) %>% 
   mutate(symp2 = factor(sympt, labels = c("strongly agree", "agree", "disagree", "strongly disagree"))) %>%
-  mutate(hist2 = factor(hist, labels = c("no", "yes")))
+  mutate(hist2 = factor(hist, labels = c("no", "yes"))) %>%
+  mutate(bse2 = factor(bse, labels = c("no", "yes"))) %>%
+  mutate(detc2 = factor(detc, labels = c("not likely", "somewhat likely", "very likely"))) %>% 
+  select(obs, me, me2, me3, sympt, symp2, pb, hist, hist2,bse,bse2,detc,detc2)
 head(mammog9)
 ```
 
 ```{r}
-descr(mammog9)
-freq(mammog9)
+mammogdt <- mammog9 %>% 
+  select(obs, me3, me2, symp2, pb, hist2, bse2, detc2)
+descr(mammogdt)
+freq(mammogdt)
 ```
 
 ```{r}
-levels(mammog9$me2)
-levels(mammog9$hist2)
-mnlogreg1 <- vglm(me2 ~ hist2, multinomial, data = mammog9)
+levels(mammogdt$me3) ##VGAM - g1 vs g3 and g2 vs g3
+levels(mammogdt$hist2)
+mnlogreg1 <- vglm(me3 ~ hist2, multinomial, data = mammogdt)
 mnlogreg1
 summary(mnlogreg1)
+exp(coef(mnlogreg1))
 ```
 
+```{r}
+result1 <- matrix(c("over a year ago", "", "", "", "",
+                    "","history - no", "0", "1", "",
+                    "", "history - yes", 1.009, 2.744, "< 0.001",
+                    "", "constant", -1.251, "", "",
+                    "within a year", "", "", "","",
+                    "","history - no", "0", "1", "",
+                    "", "history - yes", 1.256, 3.513, "<0.001",
+                    "", "constant", -0.951, "", ""), ncol = 5, byrow=T)
+colnames(result1) <- c("outcome", "Variables", "beta", "rrr", "p-value")
+kable(result1)
+```
+
+#Predict Log Odds
+
+```{r}
+logodd1 <- predict.vgam(mnlogreg1, type = "link")
+head(logodd1)
+```
+
+#Predict Probability
+
+```{r}
+prob1 <- predict.vgam(mnlogreg1, type = "response")
+head(prob1)
+head(mammogdt)
+```
+
+calculate the probability for 1st observation
+- log odd = `r head(logodd1)[1,]`
+
+```{r}
+head(logodd1)[1,]
+```
+
+- probability to be "never"
+
+
+```{r}
+1/(1 + exp(-1.25)+ exp(-0.951))
+```
+
+- probability to be "within a year"
+
+```{r}
+exp(-1.25)/(1 + exp(-1.25)+ exp(-0.951))
+```
+- probability to be "over a year"
+
+```{r}
+exp(-0.951)/(1 + exp(-1.25)+ exp(-0.951))
+```
