@@ -5,7 +5,7 @@ date: "19/02/2020"
 output: html_document
 ---
 
-
+#preamble
 ```{r, warning=FALSE}
 library(haven)
 library(tidyverse)
@@ -15,7 +15,7 @@ library(broom)
 library(knitr)
 ```
 
-
+#dataset
 ```{r}
 mammog9 <- read_dta("mammog9.dta")
 mammog9 <- mammog9 %>%
@@ -29,6 +29,7 @@ mammog9 <- mammog9 %>%
 head(mammog9)
 ```
 
+#exploratory
 ```{r}
 mammogdt <- mammog9 %>% 
   select(obs, me3, me2, symp2, pb, hist2, bse2, detc2)
@@ -36,6 +37,9 @@ descr(mammogdt)
 freq(mammogdt)
 ```
 
+#simple multinomial logistic regression
+outcome - last mammogram
+IV - history
 ```{r}
 levels(mammogdt$me3) ##VGAM - g1 vs g3 and g2 vs g3
 levels(mammogdt$hist2)
@@ -58,14 +62,14 @@ colnames(result1) <- c("outcome", "Variables", "beta", "rrr", "p-value")
 kable(result1)
 ```
 
-#Predict Log Odds
+##Predict Log Odds
 
 ```{r}
 logodd1 <- predict.vgam(mnlogreg1, type = "link")
 head(logodd1)
 ```
 
-#Predict Probability
+##Predict Probability
 
 ```{r}
 prob1 <- predict.vgam(mnlogreg1, type = "response")
@@ -97,3 +101,47 @@ exp(-1.25)/(1 + exp(-1.25)+ exp(-0.951))
 ```{r}
 exp(-0.951)/(1 + exp(-1.25)+ exp(-0.951))
 ```
+
+
+# multiple multinomial logistic regression
+
+```{r}
+head(mammogdt)
+levels(mammogdt$me3)
+mnlogreg2 <- vglm(me3 ~ symp2 + pb + hist2 + bse2 + detc2, multinomial, data = mammogdt)
+summary(mnlogreg2)
+```
+
+- recode symptoms into two category
+
+```{r}
+levels(mammogdt$symp2)
+levels(factor(mammog9$sympt))
+mammogdt <- mammogdt %>%
+  mutate(symp2cat = fct_collapse(symp2,
+                                 agree= c("strongly agree", "agree"),
+                                 disagree= c("disagree", "strongly disagree"))) %>% 
+  select(obs, me3, me2, symp2, symp2cat, pb, hist2, bse2, detc2)
+head(mammogdt)
+```
+
+
+```{r}
+levels(mammogdt$me3)
+mnlogreg3 <- vglm(me3 ~ symp2cat + pb + hist2 + bse2 + detc2, multinomial, data = mammogdt)
+summary(mnlogreg3)
+```
+
+# using nnet package
+
+```{r}
+library(nnet)
+```
+```{r}
+levels(mammogdt$me2) ##nnet - g1 vs g2 and g1 vs g2
+levels(mammogdt$hist2)
+nnetmod1 <- multinom(me2 ~ hist2, data = mammogdt)
+nnetmod1
+summary(nnetmod1)
+```
+
